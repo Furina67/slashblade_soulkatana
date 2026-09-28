@@ -1,0 +1,15 @@
+{
+  "itemGroup.soulblade": "魂刀",
+  "item.soulblade.soul_blade": "魂刀",
+  "item.soulblade.ryomen_sukuna": "魂刀·两面宿傩",
+  "item.soulblade.sukuna_finger": "两面宿傩的手指",
+  "tooltip.soulblade.finger_count": "手指数：%s",
+  "tooltip.soulblade.skills": "[解]左键空挥 [捌]右键命中实体 [领域展开]中键 · 特殊攻击冷却2秒",
+  "death.attack.soulblade_finger": "*%1$s*不配当诅咒之王的受肉体",
+  "message.soulblade.domain_started": "领域展开——伏魔御厨子",
+  "key.soulblade.domain": "领域展开（魂刀）",
+  "key.categories.soulblade": "魂刀",
+  "entity.soulblade.crescent_slash": "解",
+  "entity.soulblade.domain_slash": "斩",
+  "entity.soulblade.shrine": "伏魔御厨子神龛"
+}
