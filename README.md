@@ -6,7 +6,8 @@
 
 - **名称**：拔刀剑附属·魂刀
 - **模组 ID**：`soulkatana`
-- **前置**：SlashBlade（拔刀剑：重锋）；可选软前置：Identity（[仓库地址]https://github.com/elrondforwin/identity)
+- **前置**：SlashBlade（拔刀剑：重锋）；可选软前置：Identity（[Identity](https://github.com/elrondforwin/identity)
+)
 ）
 - **Mod加载器**：Forge
 - **定位**：面向拔刀剑的“角色/世界观融合”附属——将各类作品中的角色与设定融入拔刀剑体系（不限于单一作品）
