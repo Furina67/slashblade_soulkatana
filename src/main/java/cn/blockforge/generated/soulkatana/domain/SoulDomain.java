@@ -155,7 +155,7 @@ public final class SoulDomain {
      *  - 秒 = granule / rate，tick = ceil(秒 × 20)。
      * 任何异常都退回 fallback，保证领域永远只是"稍早/稍晚几 tick"，不会卡死流程。
      */
-    private static int readOggDurationTicks(String resource, int fallbackTicks) {
+    static int readOggDurationTicks(String resource, int fallbackTicks) {
         try (InputStream in = SoulDomain.class.getResourceAsStream(resource)) {
             if (in == null) {
                 return fallbackTicks;

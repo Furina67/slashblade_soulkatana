@@ -41,8 +41,10 @@ import java.util.UUID;
 
 /**
  * [领域展开 · 自闭圆顿裹]（服务端）：主手持「魂刀·真人」时按鼠标中键触发，骨架照 SoulDomain。
- *  1. 30 tick 前摇：在界主位置播台词（self_embodiment_of_perfection_voiceline）；
- *  2. 展开：以界主脚下为球心、半径 64 格的【上半球】领域成立（判定含 Y 轴，区别于宿傩领域的纯水平圆），
+ *  1. 台词闸门：按下中键先完整播完台词（self_embodiment_of_perfection_voiceline，服务端解析 OGG
+ *     得到精确时长，实测约 7.5 秒 = 150 tick）——台词完整播完才进入第 2 步，
+ *     台词期间再按中键无效，收刀/死亡/下线则停音中止；
+ *  2. 展开：台词播完的当 tick 立即以界主脚下为球心、半径 64 格的【上半球】领域成立（判定含 Y 轴，
  *     对半球内除界主外的一切活物挂 BUFF【触及灵魂】，播展开音（self_embodiment_of_perfection），
  *     画暗红（0xA01010）尘粒子边界环——只有边界粒子，没有渲染层/着色器/后处理；
  *  3. 领域存续期间每 tick 维护半球内目标的 soul_touch 时长（出球/死亡即时摘除）；
@@ -58,7 +60,10 @@ import java.util.UUID;
 public final class RealPersonDomain {
     public static final int RADIUS_BLOCKS = 64;
     private static final double RADIUS = RADIUS_BLOCKS;
-    private static final int CHARGE_TICKS = 30;
+    /** self_embodiment_of_perfection_voiceline.ogg 的完整时长（tick）；0 = 未解析。 */
+    private static int voicelineTicks;
+    /** 解析失败时的兜底：按当前音频实测 7.499s × 20 = 150 tick。 */
+    private static final int VOICELINE_FALLBACK_TICKS = 150;
     public static final int DOMAIN_COOLDOWN_TICKS = 600;
     /** 冷却键与宿傩领域复用同一个（两把刀共享一条领域冷却）。 */
     private static final String DOMAIN_COOLDOWN_KEY = "SoulbladeDomainCd";
@@ -96,7 +101,7 @@ public final class RealPersonDomain {
         return SoulKatanaIdentity.isRealPerson(player.getMainHandItem());
     }
 
-    /** 前摇开始：登记读条，并在界主位置播台词。 */
+    /** 台词闸门开始：登记读条（时长 = 台词 OGG 完整时长），并在界主位置播台词。 */
     private static void beginCharge(ServerPlayer player) {
         ServerLevel server = (ServerLevel) player.level();
         ChargingDomain charging = new ChargingDomain(server.getGameTime());
@@ -105,7 +110,17 @@ public final class RealPersonDomain {
                 SoulKatanaSounds.SELF_EMBODIMENT_OF_PERFECTION_VOICELINE.get(), 1.6F));
     }
 
-    /** 展开领域：半球内首个挂 [触及灵魂]、播展开音、画边界环。台词未播完则停音名单移交界主统一收尾。 */
+    /** self_embodiment_of_perfection_voiceline.ogg 播完所需 tick 数（服务端解析 OGG，与真实音频严格对齐）。 */
+    private static int voicelineDurationTicks() {
+        if (voicelineTicks <= 0) {
+            voicelineTicks = SoulDomain.readOggDurationTicks(
+                    "/assets/soulkatana/sounds/self_embodiment_of_perfection_voiceline.ogg",
+                    VOICELINE_FALLBACK_TICKS);
+        }
+        return voicelineTicks;
+    }
+
+    /** 展开领域（台词已完整播完的当 tick 调用）：半球内首个挂 [触及灵魂]、播展开音、画边界环。台词未播完则停音名单移交界主统一收尾。 */
     public static void cast(ServerPlayer player, Set<UUID> voicelineListeners) {
         ServerLevel server = (ServerLevel) player.level();
         Vec3 center = player.position();
@@ -148,7 +163,8 @@ public final class RealPersonDomain {
         if (charging != null) {
             if (!player.isAlive() || !isHoldingRealPerson(player)) {
                 cancelCharging(player);
-            } else if (server.getGameTime() - charging.startedAt >= CHARGE_TICKS) {
+            } else if (server.getGameTime() - charging.startedAt >= voicelineDurationTicks()) {
+                // 台词音效已完整播完：这一刻才展开领域、挂 BUFF、播展开音，不再与台词后半段重叠。
                 CHARGING_DOMAINS.remove(id);
                 cast(player, charging.musicNotified);
             }
