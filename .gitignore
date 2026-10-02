@@ -1,24 +1,5 @@
-# Gradle / IDE / 运行产物
 build/
 .gradle/
 run/
 logs/
 *.class
-
-# IDE 本地配置
-.idea/
-.vscode/
-*.iml
-
-# 系统文件
-.DS_Store
-Thumbs.db
-
-# 构建产物 jar（发布时用仓库 Actions 或本地构建）
-*.jar
-
-# 本地备份与构建日志（不入库）
-*.bak
-build*.log
-offline.log
-*.log

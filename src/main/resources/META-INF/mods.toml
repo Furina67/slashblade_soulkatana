@@ -16,6 +16,12 @@ description='''
 玩法：左键未命中施放【解】（远程月牙斩），右键命中施放【捌】（百分比削血 / 近战伤害），
 鼠标中键发动【领域展开】。另新增【两面宿傩的手指】物品（结构宝箱 20% 概率出现，食用即死）。
 
+新增命名刀【魂刀·真人】与合成素材【改造人】（雪屋地下室宝箱固定 4 个）。
+主手持【魂刀·真人】右键击中生物可发动【无为转变】。
+本模组可选联动「化身」(Identity, modid=identity)：装载 Identity 时，
+默认必须主手持【魂刀·真人】才能获得/切换化身（可在 config/soulkatana-server.toml 关闭）。
+Identity 为软依赖——不装它本模组照常运行，仅缺失这部分联动。
+
 需要前置模组 SlashBlade，否则本模组不提供任何游戏内容。
 详细说明见 README.md。
 '''
@@ -35,5 +41,12 @@ side="BOTH"
 modId="slashblade"
 mandatory=true
 versionRange="[1.9,)"
+ordering="AFTER"
+side="BOTH"
+# 软依赖：没有 identity 也能运行，只是失去"持真人刀解锁化身变身"的联动
+[[dependencies.${mod_id}]]
+modId="identity"
+mandatory=false
+versionRange="[2.0,)"
 ordering="AFTER"
 side="BOTH"

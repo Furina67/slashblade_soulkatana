@@ -1,0 +1,18 @@
+{
+  "name": "soulkatana:real_person",
+  "properties": {
+    "attack_base": 6.0,
+    "max_damage": 45,
+    "sword_type": [],
+    "slash_art": "slashblade:judgement_cut",
+    "unbreakable": false
+  },
+  "render": {
+    "model": "slashblade:model/blade.obj",
+    "texture": "soulkatana:textures/model/real_person.png",
+    "summon_sword_color": 10144032,
+    "color_inverse": false,
+    "carry_type": "katana"
+  },
+  "creativeGroup": "soulkatana:soulkatana"
+}

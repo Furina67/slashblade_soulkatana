@@ -1,0 +1,24 @@
+{
+  "type": "slashblade:shaped_blade",
+  "blade": "soulkatana:real_person",
+  "category": "equipment",
+  "pattern": [
+    " R ",
+    " P ",
+    " R "
+  ],
+  "key": {
+    "R": {
+      "item": "soulkatana:reformed_human"
+    },
+    "P": {
+      "type": "slashblade:blade",
+      "item": "slashblade:slashblade_wood",
+      "request": {}
+    }
+  },
+  "result": {
+    "item": "slashblade:slashblade"
+  },
+  "show_notification": true
+}

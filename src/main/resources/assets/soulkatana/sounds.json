@@ -1,0 +1,37 @@
+{
+  "domain_charge": {
+    "sounds": [
+      "soulkatana:domain_charge"
+    ]
+  },
+  "domain_expand": {
+    "sounds": [
+      "soulkatana:domain_expand"
+    ]
+  },
+  "sukuna_slash_1": {
+    "sounds": [
+      "soulkatana:sukuna_slash_1"
+    ]
+  },
+  "malevolent_shrine": {
+    "sounds": [
+      "soulkatana:malevolent_shrine"
+    ]
+  },
+  "idle_transfiguration": {
+    "sounds": [
+      "soulkatana:idle_transfiguration"
+    ]
+  },
+  "self_embodiment_of_perfection": {
+    "sounds": [
+      "soulkatana:self_embodiment_of_perfection"
+    ]
+  },
+  "self_embodiment_of_perfection_voiceline": {
+    "sounds": [
+      "soulkatana:self_embodiment_of_perfection_voiceline"
+    ]
+  }
+}
