@@ -95,13 +95,17 @@ public final class SoulKatanaNetwork {
                 switch (packet.action()) {
                     case ACTION_TATAYAKU -> SoulSkill.castTatayaku(player);
                     case ACTION_KANESADA -> SoulSkill.castKanesada(player);
-                    // 中键按手持刀分流：主手真人刀 → 自闭圆顿裹；否则照旧走宿傩的伏魔御厨子
+                    // 中键按手持刀分流（显式白名单：只有本模组两把已知刀才进入对应领域）：
+                    //   魂刀·真人     → 自闭圆顿裹（RealPersonDomain）
+                    //   魂刀·两面宿傩 → 伏魔御厨子（SoulDomain）
+                    //   其余任何刀（含未写领域的自定义魂刀）→ 不进入任何领域
                     case ACTION_DOMAIN_TOGGLE -> {
                         if (SoulKatanaIdentity.isRealPerson(player.getMainHandItem())) {
                             RealPersonDomain.toggle(player);
-                        } else {
+                        } else if (SoulKatanaIdentity.isSoulKatana(player.getMainHandItem())) {
                             SoulDomain.toggle(player);
                         }
+                        // else: 既不是真人刀也不是两面宿傩刀 —— 静默忽略，不触发任何领域
                     }
                     case ACTION_DOMAIN_ATTACK -> RealPersonDomain.onOwnerAttack(player);
                     default -> { }
