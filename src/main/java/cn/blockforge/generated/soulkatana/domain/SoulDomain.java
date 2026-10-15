@@ -49,8 +49,9 @@ import java.util.UUID;
  *  0. 吟唱闸门：按下中键先完整播完 malevolent_shrine.ogg（伏魔御厨子咏唱），
  *     音尾落地后才开始后续程序；吟唱中再按中键无效，收刀/死亡则中止并停音；
  *  1. 30 tick 前摇：周围实体近乎定身，圈内玩家视野 1.5 秒渐染暗红，播前摇音；
- *  2. 展开：界主身后 4 格生成神龛（嘴部对准背部），半径 64 格领域成立，
- *     播"伏魔御厨子"、画边界环、圈内玩家满额暗红 + 迷雾收缩 + 震颤 + 暗化/色差后处理；
+ *  2. 展开：界主身后 4 格生成神龛（嘴部对准背部），以展开瞬间界主坐标为球心、
+ *     半径 32 格的【半球体】领域成立（不生成结界方块，界主移动不改变球心），
+ *     播"伏魔御厨子"、画半球边界（底圈 + 经线）、圈内玩家满额暗红 + 迷雾收缩 + 震颤 + 暗化/色差后处理；
  *  3. 领域内每 2 tick 落下数十道幻影斩（贴图斩击），并持续对界主之外的一切
  *     活物造成 1.3 × 面板攻击 的必中伤害；
  *  4. 再按一次中键关闭（关闭是即时收尾，不走吟唱）；界主死亡/换维度/走出领域自动收尾；
@@ -59,7 +60,8 @@ import java.util.UUID;
  */
 @Mod.EventBusSubscriber(modid = "soulkatana")
 public final class SoulDomain {
-    public static final int RADIUS_BLOCKS = 64;
+    /** 开放式领域：无结界方块，半径 32 的半球体即作用范围（球心锁定展开时的坐标）。 */
+    public static final int RADIUS_BLOCKS = 32;
     private static final double RADIUS = RADIUS_BLOCKS;
     private static final int CHARGE_TICKS = 30;
     private static final int PRECAST_RADIUS_BLOCKS = 32;
@@ -69,18 +71,18 @@ public final class SoulDomain {
     private static final String DOMAIN_COOLDOWN_KEY = "SoulbladeDomainCd";
     /** 边界环约每 3 格一个粒子。 */
     private static final int RING_POINTS = (int) Math.ceil(2.0D * Math.PI * RADIUS / 3.0D);
+    /** 半球经线：8 条自底圈升到顶点的弧，每条 10 个采样点（半球体的边界可视化）。 */
+    private static final int MERIDIAN_COUNT = 8;
+    private static final int MERIDIAN_STEPS = 10;
     /** 每 2 tick 一波斩击风暴。 */
     private static final int SLASH_STORM_INTERVAL_TICKS = 2;
     private static final int SLASHES_PER_STORM = 60;
     private static final double SLASH_STORM_LIFETIME_SECONDS = 0.15D;
     private static final double SHRINE_INNER_RADIUS = 20.0D;
     private static final double SHRINE_NEAR_CHANCE = 0.65D;
-    private static final double SHRINE_FLAT_CHANCE = 0.35D;
-    private static final double SHRINE_FLOAT_MIN_ABOVE = 6.0D;
-    private static final double SHRINE_FLOAT_MAX_ABOVE = 12.0D;
-    private static final double STORM_ABOVE_CHANCE = 0.75D;
-    private static final double STORM_ABOVE_RANGE = 48.0D;
-    private static final double STORM_BELOW_RANGE = 32.0D;
+    /** 斩击在神龛水平半径内时，贴近神龛高度的概率（其余按半球高度随机）。 */
+    private static final double STORM_SHRINE_HEIGHT_CHANCE = 0.6D;
+    private static final double STORM_ABOVE_RANGE = 28.0D;
     private static final int SLASH_STORM_MIN_LENGTH = 15;
     private static final int SLASH_STORM_MAX_LENGTH = 45;
     private static final Map<UUID, ActiveDomain> ACTIVE_DOMAINS = new HashMap<>();
@@ -97,8 +99,31 @@ public final class SoulDomain {
 
     private SoulDomain() { }
 
+    /**
+     * 创造模式豁免：创造模式无视领域冷却，随时可以展开。
+     * 两把刀（宿傩 / 真人）共用同一枚冷却键，所以豁免放在这里一处生效。
+     */
+    public static boolean hasDomainCooldownExemption(Player player) {
+        return player.isCreative();
+    }
+
     public static boolean isDomainCoolingDown(Player player) {
+        if (hasDomainCooldownExemption(player)) {
+            return false;
+        }
         return player.getPersistentData().getLong(DOMAIN_COOLDOWN_KEY) > player.level().getGameTime();
+    }
+
+    /**
+     * 领域收尾时写入冷却。创造模式豁免者直接清掉残留计时，
+     * 这样从创造切回生存不会带着上一段没有意义的冷却。
+     */
+    public static void startDomainCooldown(Player player, long gameTime) {
+        if (hasDomainCooldownExemption(player)) {
+            player.getPersistentData().remove(DOMAIN_COOLDOWN_KEY);
+            return;
+        }
+        player.getPersistentData().putLong(DOMAIN_COOLDOWN_KEY, gameTime + DOMAIN_COOLDOWN_TICKS);
     }
 
     /** 中键：领域开启中 → 关闭；吟唱/前摇中、冷却中 → 无效；否则先完整播完咏唱音。 */
@@ -326,10 +351,8 @@ public final class SoulDomain {
             broadcastVisualOff(domain.level, domain, player);
             return;
         }
-        // 界主走出领域范围（水平半径外）立刻结束
-        double awayX = player.getX() - domain.center.x;
-        double awayZ = player.getZ() - domain.center.z;
-        if (awayX * awayX + awayZ * awayZ > RADIUS * RADIUS) {
+        // 界主走出半球范围（3D 距离；球心固定在展开瞬间的坐标，界主移动不会拖着领域走）
+        if (player.distanceToSqr(domain.center) > RADIUS * RADIUS) {
             close(player);
             return;
         }
@@ -367,8 +390,7 @@ public final class SoulDomain {
         clearAllShrines(existing.level, existing);
         stopDomainMusic(existing.level, existing.musicNotified,
                 SoulKatanaSounds.DOMAIN_EXPAND.get(), SoulKatanaSounds.MALEVOLENT_SHRINE.get());
-        player.getPersistentData().putLong(DOMAIN_COOLDOWN_KEY,
-                existing.level.getGameTime() + DOMAIN_COOLDOWN_TICKS);
+        startDomainCooldown(player, existing.level.getGameTime());
         broadcastVisualOff(existing.level, existing, player);
     }
 
@@ -444,16 +466,13 @@ public final class SoulDomain {
         broadcastVisual(server, center, radius, mode, null);
     }
 
-    /** 以 center 为圆心把领域视觉模式广播给圈内玩家；ACTIVE 时登记名单用于精确回收。 */
+    /** 以 center 为圆心把领域视觉模式广播给半球内的玩家；ACTIVE 时登记名单用于精确回收。 */
     private static void broadcastVisual(ServerLevel server, Vec3 center, double radius, int mode,
                                         ActiveDomain domain) {
-        double radiusSquared = radius * radius;
         AABB box = new AABB(center.x - radius, center.y - radius, center.z - radius,
                 center.x + radius, center.y + radius, center.z + radius);
         for (ServerPlayer target : server.getEntitiesOfClass(ServerPlayer.class, box, Player::isAlive)) {
-            double dx = target.getX() - center.x;
-            double dz = target.getZ() - center.z;
-            if (dx * dx + dz * dz <= radiusSquared) {
+            if (inDome(center, target)) {
                 SoulKatanaNetwork.sendDomainVisual(target, mode);
                 if (domain != null && mode == SoulKatanaNetwork.DOMAIN_VISUAL_ACTIVE) {
                     domain.visualNotified.add(target.getUUID());
@@ -476,17 +495,14 @@ public final class SoulDomain {
         SoulKatanaNetwork.sendDomainVisual(owner, SoulKatanaNetwork.DOMAIN_VISUAL_OFF);
     }
 
-    /** 每 0.5 秒对账：圈内玩家幂等收 ACTIVE，出圈的补 OFF 并摘除。 */
+    /** 每 0.5 秒对账：半球内玩家幂等收 ACTIVE，出圈的补 OFF 并摘除。 */
     private static void syncDomainAura(ServerLevel server, ActiveDomain domain) {
-        double radiusSquared = RADIUS * RADIUS;
         AABB box = new AABB(domain.center.x - RADIUS, domain.center.y - RADIUS,
                 domain.center.z - RADIUS, domain.center.x + RADIUS,
                 domain.center.y + RADIUS, domain.center.z + RADIUS);
         List<ServerPlayer> inside = new ArrayList<>();
         for (ServerPlayer target : server.getEntitiesOfClass(ServerPlayer.class, box, Player::isAlive)) {
-            double dx = target.getX() - domain.center.x;
-            double dz = target.getZ() - domain.center.z;
-            if (dx * dx + dz * dz <= radiusSquared) {
+            if (inDome(domain.center, target)) {
                 inside.add(target);
             }
         }
@@ -540,17 +556,14 @@ public final class SoulDomain {
         charging.slowedEntities.clear();
     }
 
-    /** 领域内的必中伤害：对界主之外的一切活物持续结算。 */
+    /** 领域内的必中伤害：对半球体内、界主之外的一切活物持续结算。 */
     private static void damageEntities(ServerLevel server, ServerPlayer owner, Vec3 center) {
         AABB search = new AABB(center.x - RADIUS, center.y - RADIUS, center.z - RADIUS,
                 center.x + RADIUS, center.y + RADIUS, center.z + RADIUS);
-        double radiusSquared = RADIUS * RADIUS;
         for (LivingEntity target : server.getEntitiesOfClass(LivingEntity.class, search,
                 entity -> entity != owner && entity.isAlive()
                         && !(entity instanceof Player player && player.getAbilities().instabuild))) {
-            double dx = target.getX() - center.x;
-            double dz = target.getZ() - center.z;
-            if (dx * dx + dz * dz > radiusSquared) {
+            if (!inDome(center, target)) {
                 continue;
             }
             double heldDamage = Math.max(2.0D, owner.getAttributeValue(Attributes.ATTACK_DAMAGE));
@@ -568,7 +581,15 @@ public final class SoulDomain {
         }
     }
 
-    /** 每 2 tick 一波幻影斩：落点以神龛为锚，三种样式随机，面片对准界主。 */
+    /** 半球判定：球心锁定展开坐标，只取 caster 脚下平面以上的半球（dy ≥ -0.5 容忍半格高差）。 */
+    static boolean inDome(Vec3 center, Entity target) {
+        double dx = target.getX() - center.x;
+        double dy = target.getY() - center.y;
+        double dz = target.getZ() - center.z;
+        return dy >= -0.5D && dx * dx + dy * dy + dz * dz <= RADIUS * RADIUS;
+    }
+
+    /** 每 2 tick 一波幻影斩：落点以神龛为锚，全部收在半径 32 的半球体内，三种样式随机，面片对准界主。 */
     private static void spawnSlashStorm(ServerLevel server, ActiveDomain domain) {
         Entity owner = server.getEntity(domain.ownerEntityId);
         Vec3 viewerEye = owner != null ? owner.getEyePosition() : domain.center.add(0.0D, 1.5D, 0.0D);
@@ -578,44 +599,34 @@ public final class SoulDomain {
         for (int i = 0; i < SLASHES_PER_STORM; i++) {
             double x;
             double z;
-            double angle = 0.0D;
-            double distance = 0.0D;
+            double angle;
+            double distance;
             if (server.getRandom().nextDouble() < SHRINE_NEAR_CHANCE) {
                 angle = server.getRandom().nextDouble() * Math.PI * 2.0D;
                 distance = Math.sqrt(server.getRandom().nextDouble()) * SHRINE_INNER_RADIUS;
                 x = shrinePos.x + Math.cos(angle) * distance;
                 z = shrinePos.z + Math.sin(angle) * distance;
             } else {
-                for (int attempt = 0; attempt < 12; attempt++) {
-                    angle = server.getRandom().nextDouble() * Math.PI * 2.0D;
-                    distance = Math.sqrt(server.getRandom().nextDouble()) * (RADIUS - 4.0D);
-                    x = domain.center.x + Math.cos(angle) * distance;
-                    z = domain.center.z + Math.sin(angle) * distance;
-                    double ddx = x - shrinePos.x;
-                    double ddz = z - shrinePos.z;
-                    if (ddx * ddx + ddz * ddz >= innerRadiusSquared) {
-                        break;
-                    }
-                }
+                angle = server.getRandom().nextDouble() * Math.PI * 2.0D;
+                distance = Math.sqrt(server.getRandom().nextDouble()) * (RADIUS - 4.0D);
                 x = domain.center.x + Math.cos(angle) * distance;
                 z = domain.center.z + Math.sin(angle) * distance;
             }
-            double dx = x - shrinePos.x;
-            double dz = z - shrinePos.z;
-            boolean insideShrineRadius = dx * dx + dz * dz < innerRadiusSquared;
+            // 半球内取 Y：底平面 = 展开坐标的脚下高度，向上到球面为止；
+            // 神龛水平范围内有较高概率贴神龛高度（保留原版"从神龛喷出斩击"的观感）。
+            double dx = x - domain.center.x;
+            double dz = z - domain.center.z;
+            double planarSq = dx * dx + dz * dz;
+            double maxAbove = Math.sqrt(Math.max(1.0D, RADIUS * RADIUS - planarSq));
             double y;
-            if (insideShrineRadius) {
-                if (server.getRandom().nextDouble() < SHRINE_FLAT_CHANCE) {
-                    y = shrinePos.y;
-                } else {
-                    y = shrinePos.y + SHRINE_FLOAT_MIN_ABOVE + server.getRandom().nextDouble()
-                            * (SHRINE_FLOAT_MAX_ABOVE - SHRINE_FLOAT_MIN_ABOVE);
-                }
+            if (planarSq < innerRadiusSquared
+                    && server.getRandom().nextDouble() < STORM_SHRINE_HEIGHT_CHANCE) {
+                y = shrinePos.y;
             } else {
-                y = server.getRandom().nextDouble() < STORM_ABOVE_CHANCE
-                        ? shrinePos.y + server.getRandom().nextDouble() * STORM_ABOVE_RANGE
-                        : shrinePos.y - server.getRandom().nextDouble() * STORM_BELOW_RANGE;
+                y = domain.center.y + server.getRandom().nextDouble()
+                        * Math.min(maxAbove, STORM_ABOVE_RANGE);
             }
+            y = Mth.clamp(y, domain.center.y, domain.center.y + maxAbove);
             y = Mth.clamp(y, server.getMinBuildHeight() + 1, server.getMaxBuildHeight() - 1);
             BlockPos probe = BlockPos.containing(x, y, z);
             if (!server.hasChunkAt(probe)) {
@@ -670,17 +681,35 @@ public final class SoulDomain {
         listeners.clear();
     }
 
-    /** 边界环：环点在半径圆周上，普通粒子广播只达 32 格，故界主另走逐玩家通道，其他人贴边时也能看到。 */
+    /**
+     * 半球边界：底圈 + 8 条经线（自底圈升到顶点）。
+     * 普通粒子广播只达 32 格，故界主另走逐玩家通道，其他人贴边时也能看到。
+     */
     private static void sendBoundary(ServerLevel server, Vec3 center, ServerPlayer owner) {
         double ringY = center.y + 0.1D;
         for (int i = 0; i < RING_POINTS; i++) {
             double angle = i * Math.PI * 2.0D / RING_POINTS;
             double x = center.x + Math.cos(angle) * RADIUS;
             double z = center.z + Math.sin(angle) * RADIUS;
-            server.sendParticles(DOMAIN_RING, x, ringY, z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
-            if (owner != null) {
-                server.sendParticles(owner, DOMAIN_RING, true, x, ringY, z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+            ringParticle(server, owner, x, ringY, z);
+        }
+        for (int m = 0; m < MERIDIAN_COUNT; m++) {
+            double phi = m * Math.PI * 2.0D / MERIDIAN_COUNT;
+            for (int k = 1; k <= MERIDIAN_STEPS; k++) {
+                double theta = k * (Math.PI * 0.5D) / (MERIDIAN_STEPS + 1);
+                double horizontal = Math.cos(theta) * RADIUS;
+                double x = center.x + Math.cos(phi) * horizontal;
+                double z = center.z + Math.sin(phi) * horizontal;
+                double y = center.y + Math.sin(theta) * RADIUS;
+                ringParticle(server, owner, x, y, z);
             }
+        }
+    }
+
+    private static void ringParticle(ServerLevel server, ServerPlayer owner, double x, double y, double z) {
+        server.sendParticles(DOMAIN_RING, x, y, z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+        if (owner != null) {
+            server.sendParticles(owner, DOMAIN_RING, true, x, y, z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
         }
     }
 

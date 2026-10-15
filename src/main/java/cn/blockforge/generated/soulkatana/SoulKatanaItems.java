@@ -4,9 +4,11 @@ import cn.blockforge.generated.soulkatana.item.ReformedHumanItem;
 import cn.blockforge.generated.soulkatana.item.SukunaFingerItem;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
@@ -30,6 +32,10 @@ public final class SoulKatanaItems {
     public static final RegistryObject<Item> REFORMED_HUMAN = ITEMS.register("reformed_human",
             ReformedHumanItem::new);
 
+    /** 结界方块的物品形态（领域运行时自动生成，创造栏可取出查看）。 */
+    public static final RegistryObject<Item> DOMAIN_BARRIER_ITEM = ITEMS.register("domain_barrier",
+            () -> new BlockItem(SoulKatanaBlocks.DOMAIN_BARRIER.get(), new Item.Properties()));
+
     /** 独立创造标签栏「魂刀」：收录手指、改造人与本模组的命名刀，今后所有模组物品都放这里。 */
     public static final RegistryObject<CreativeModeTab> SOULBLADE_TAB = TABS.register("soulkatana",
             () -> CreativeModeTab.builder()
@@ -41,6 +47,9 @@ public final class SoulKatanaItems {
                     .displayItems((params, output) -> {
                         output.accept(new ItemStack(SUKUNA_FINGER.get()));
                         output.accept(new ItemStack(REFORMED_HUMAN.get()));
+                        output.accept(new ItemStack(DOMAIN_BARRIER_ITEM.get()));
+                        // 光明方块用原版调试方块，不重复注册，这里顺手放一份方便查看领域填充体
+                        output.accept(new ItemStack(Items.LIGHT));
                         var blades = params.holders().lookupOrThrow(SoulKatanaIdentity.NAMED_BLADES_KEY);
                         ItemStack sukuna = SoulKatanaIdentity.namedBladeStack(
                                 blades, SoulKatanaIdentity.RYOMEN_SUKUNA);

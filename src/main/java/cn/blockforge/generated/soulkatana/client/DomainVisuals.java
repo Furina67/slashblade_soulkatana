@@ -30,9 +30,9 @@ public final class DomainVisuals {
     private static final int PRECAST_RAMP_TICKS = 30;
     private static final int PRECAST_TIMEOUT_TICKS = 40;
     private static final float STRENGTH_STEP = 0.05F;
-    /** 领域开启期间的等效地形雾：远平面 64 格（配合 64 格半径），近平面按原版公式推导。 */
-    private static final float FOG_FAR = 64.0F;
-    private static final float FOG_NEAR = 50.0F;
+    /** 领域开启期间的等效地形雾：远平面 32 格（配合 32 格半球半径），近平面按原版公式推导。 */
+    private static final float FOG_FAR = 32.0F;
+    private static final float FOG_NEAR = 25.0F;
     private static final int DOMAIN_SHAKE_TICKS = 240;
     private static final ResourceLocation POST_CHAIN =
             new ResourceLocation("soulkatana", "shaders/post/sukuna_domain.json");

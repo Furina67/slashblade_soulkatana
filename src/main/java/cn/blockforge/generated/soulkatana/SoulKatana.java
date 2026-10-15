@@ -31,6 +31,9 @@ public final class SoulKatana {
 
     public SoulKatana() {
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
+        // 领域结构方块必须先于引用它们的方块物品注册（DeferredRegister 的 RegistryObject 是惰性的，
+        // 但保证注册顺序能避免任何加载期的取用时序问题）。
+        SoulKatanaBlocks.BLOCKS.register(bus);
         SoulKatanaItems.ITEMS.register(bus);
         SoulKatanaItems.TABS.register(bus);
         SoulKatanaEntities.ENTITY_TYPES.register(bus);

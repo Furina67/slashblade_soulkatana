@@ -1,5 +1,5 @@
 plugins { id 'java'; id 'net.minecraftforge.gradle' version '[6.0,6.2)' }
-version = '1.1.0-r12'
+version = '1.1.0-beta'
 group = 'cn.blockforge.generated.soulkatana'
 base { archivesName = 'soulkatana-1.20.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
