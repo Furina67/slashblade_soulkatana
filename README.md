@@ -6,7 +6,7 @@
 
 - **名称**：拔刀剑附属·魂刀
 - **模组 ID**：`soulkatana`
-- **前置**：SlashBlade（拔刀剑：重锋）；可选软前置：Identity（[Identity](https://github.com/elrondforwin/identity)
+- **前置**：SlashBlade（拔刀剑：重锋）；可选软前置：Identity（[Identity](https://github.com/elrondforwin/identity
 )
 ）
 - **Mod加载器**：Forge
@@ -15,10 +15,6 @@
 
 ---
 
-## 二、玩法设计
-
-> 魂刀本身只是一个通用载体。它负责把不同世界观里的角色、能力和设定，以拔刀剑附属的形式带进游戏。
-
-## 四、许可
+## 二、许可
 
 本项目采用 **MIT License**，详见 [LICENSE](LICENSE)。
