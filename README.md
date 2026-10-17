@@ -6,7 +6,7 @@
 
 - **名称**：拔刀剑附属·魂刀
 - **模组 ID**：`soulkatana`
-- **前置**：SlashBlade（拔刀剑：重锋）；可选软前置：Identity（[Identity](https://github.com/elrondforwin/identity
+- **前置**：SlashBlade（拔刀剑：重锋）；可选软前置：Identity（[仓库](https://github.com/elrondforwin/identity
 )
 ）
 - **Mod加载器**：Forge
